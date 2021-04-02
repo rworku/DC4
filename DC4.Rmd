@@ -1,0 +1,152 @@
+---
+title: "DC4"
+author: "Rekik Worku"
+date: "3/31/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library("readxl")
+library(tidyverse)
+
+#LOAD DATA
+
+IDS0406 <- read_excel("~/R/IDS-0406.xlsx")
+IDS0407 <- read_excel("~/R/IDS-0407.xlsx")
+#FIRE0406 <- read_csv("~/R/Firewall-04062012.csv")
+
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+
+# # Filter out generic protocol command decode
+# IDS0406 <- IDS0406 %>%
+# filter(classification != "Generic Protocol Command Decode")
+# 
+# IDS0407 <- IDS0407 %>%
+# filter(classification != "Generic Protocol Command Decode")
+
+#Separate date and time for variables
+
+IDS0406 <- IDS0406 %>% tidyr::separate(time, c("date", "time"), sep = " ")
+
+IDS0407 <- IDS0407 %>% tidyr::separate(time, c("date", "time"), sep = " ")
+
+
+#FIRE0406 <- FIRE0406 %>% tidyr::separate('Date/time', c("date", "time"), sep = " ")
+
+
+```
+
+```{r}
+#Barplot showing which IP Address had the most attempted information leaks (04/06)
+
+IDS0406A <- IDS0406 %>%
+filter(classification == "Attempted Information Leak")
+
+
+ggplot(data = IDS0406A, mapping = aes(x = sourceIP)) +
+  geom_bar()+
+  labs(title = "Which IP Addresses had the most attempted information leaks?",x= "IP Addesses", y="Frequency")
+
+#172.23.231.69 had the most attempted information leaks
+
+
+
+
+```
+
+```{r}
+sources <- IDS0406 %>%
+  distinct(sourcePort) %>%
+  rename(label = sourcePort)
+
+destinations <- IDS0406 %>%
+  distinct(destPort) %>%
+  rename(label = destPort)
+
+
+nodes <- full_join(sources, destinations, by = "label")
+nodes
+
+
+nodes <- nodes %>% rowid_to_column("id")
+
+
+
+```
+```{r}
+
+per_route <- IDS0406 %>%  
+  group_by(sourcePort, destPort) %>%
+  summarise(weight = n(),.groups = 'drop') %>% 
+  ungroup()
+
+```
+
+
+```{r}
+edges <- per_route %>% 
+  left_join(nodes, by = c("sourcePort" = "label")) %>% 
+  rename(from = id)
+
+edges <- edges %>% 
+  left_join(nodes, by = c("destPort" = "label")) %>% 
+  rename(to = id)
+```
+
+```{r}
+edges <- select(edges, from, to, weight)
+edges
+```
+
+```{r}
+library(network)
+
+
+routes_network <- network(edges, vertex.attr = nodes, matrix.type = "edgelist", ignore.eval = FALSE)
+
+class(routes_network)
+
+plot(routes_network, vertex.cex = 3)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
